@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Sequel::Factory by mjijackson</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Sequel::Factory</h1>
+        <p>Simple, powerful factories for Sequel models</p>
+
+        <p class="view"><a href="https://github.com/mjijackson/sequel-factory">View the Project on GitHub <small>mjijackson/sequel-factory</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/mjijackson/sequel-factory/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/mjijackson/sequel-factory/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/mjijackson/sequel-factory">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <p><strong>Sequel::Factory</strong> is a little <a href="http://rubygems.org">RubyGem</a> that lets you
+easily specify factories for your <a href="http://sequel.rubyforge.org/">Sequel</a> models.
+A factory is an object that knows how to generate an instance of a model. They
+are very useful in testing and development scenarios when you need to simulate
+the existence of real data in your system.</p>
+
+<p>Sequel::Factory supports the following features:</p>
+
+<ul>
+<li>Multiple factories per model, with different attributes</li>
+<li>Inclusion of the attributes of one factory into another</li>
+<li>Ability to configure the <code>Sequel::Model</code> method used by a factory to
+generate instances (defaults to <code>create</code>)</li>
+<li>Ability to override factory-generated values on instance creation</li>
+<li>Sequential attributes (e.g. auto-incrementing ids)</li>
+</ul><p>Also, the actual code is only ~100 lines of Ruby, so it should be fairly
+straightforward for you to understand.</p>
+
+<h2>Installation</h2>
+
+<p>Using <a href="http://rubygems.org/">RubyGems</a>:</p>
+
+<pre><code>$ sudo gem install sequel-factory
+</code></pre>
+
+<p>From a local copy:</p>
+
+<pre><code>$ git clone git://github.com/mjijackson/sequel-factory.git
+$ cd sequel-factory
+$ rake package &amp;&amp; sudo rake install
+</code></pre>
+
+<h2>Usage</h2>
+
+<p>Sequel::Factory adds a <code>factory</code> method to <code>Sequel::Model</code>. You use this
+method to define your factories by passing a block and (optionally) a name. When
+you pass a block a new instance of <code>Sequel::Factory</code> is created.</p>
+
+<p>You call a factory using <code>Sequel::Model.make</code>. Each time the factory is called
+its block is <code>instance_eval</code>'d in the context of the factory. The factory uses
+<code>method_missing</code> to catch all unknown method calls and their arguments, which
+should correspond to the names and values of attributes to use for the model.</p>
+
+<p>This may sound a bit complex, but it works out to be very simple in practice.</p>
+
+<div class="highlight">
+<pre><span class="no">User</span><span class="o">.</span><span class="n">factory</span> <span class="k">do</span>
+  <span class="c1"># self is User.factory (or User.factories[:default])</span>
+  <span class="nb">name</span> <span class="no">Randgen</span><span class="o">.</span><span class="n">name</span>
+<span class="k">end</span>
+
+<span class="no">User</span><span class="o">.</span><span class="n">factory</span><span class="p">(</span><span class="ss">:with_email</span><span class="p">)</span> <span class="k">do</span>
+  <span class="c1"># self is User.factory(:with_email)</span>
+  <span class="n">include_factory</span> <span class="no">User</span><span class="o">.</span><span class="n">factory</span>
+  <span class="n">email</span> <span class="no">Randgen</span><span class="o">.</span><span class="n">email</span>
+<span class="k">end</span>
+
+<span class="n">user1</span> <span class="o">=</span> <span class="no">User</span><span class="o">.</span><span class="n">make</span>               <span class="c1"># Has a "name" attribute</span>
+<span class="n">user2</span> <span class="o">=</span> <span class="no">User</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="ss">:with_email</span><span class="p">)</span>  <span class="c1"># Has both "name" and "email" attributes</span>
+</pre>
+</div>
+
+
+<p>The above example defines two factories on the <code>User</code> model: a "default" factory
+and another factory named <code>:with_email</code>. The <code>:with_email</code> factory <em>includes</em>
+the default factory (using <code>Sequel::Factory#include_factory</code>), which just means
+that all attributes defined in the default factory will also be set on instances
+that are generated with the <code>:with_email</code> factory in addition to any attributes
+it defines itself.</p>
+
+<p>In the example above I'm using the helpful <a href="http://rubygems.org/gems/randexp">randexp gem</a>
+to generate my factory values, but you can generate them however you like.</p>
+
+<p>If you need to generate unique sequential values you can pass a block to the
+attribute name when you call it in the factory. Each time this block is called
+it takes an incrementing integer value as its argument. The return value of the
+block is used as the value of the attribute.</p>
+
+<p>The following example defines a factory on the <code>User</code> model that is able to
+generate a new <code>User</code> object with unique <code>id</code> and <code>handle</code> attributes.</p>
+
+<div class="highlight">
+<pre><span class="no">User</span><span class="o">.</span><span class="n">factory</span> <span class="k">do</span>
+  <span class="nb">id</span> <span class="p">{</span><span class="o">|</span><span class="n">n</span><span class="o">|</span> <span class="n">n</span> <span class="p">}</span>
+  <span class="n">handle</span> <span class="s2">"user</span><span class="si">#{</span><span class="nb">id</span><span class="si">}</span><span class="s2">"</span>
+<span class="k">end</span>
+</pre>
+</div>
+
+
+<h2>License</h2>
+
+<p>Copyright 2012 Michael Jackson</p>
+
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:</p>
+
+<p>The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.</p>
+
+<p>The software is provided "as is", without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose and non-infringement. In no event shall the
+authors or copyright holders be liable for any claim, damages or other
+liability, whether in an action of contract, tort or otherwise, arising from,
+out of or in connection with the software or the use or other dealings in
+the software.</p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/mjijackson">mjijackson</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
