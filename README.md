@@ -67,6 +67,21 @@ it defines itself.
 In the example above I'm using the helpful [randexp gem](http://rubygems.org/gems/randexp)
 to generate my factory values, but you can generate them however you like.
 
+You are able to pass additional arguments, like ...
+```ruby
+User.factory(:my_user) do
+  name Randgen.name
+  group_id 123
+end
+
+my_user  = User(:my_user, :group_id => 789)    # Overwrites group_id with 789
+my_user2 = User(:my_user, :another_fk_id => 1) # Sets another_fk_id to 1
+```
+This might come in handy, when working with foreign keys and building relations
+between models. Please note that you might need to include ```Model.unrestrict_primary_key``` 
+to avoid errors when assigning values to primary keys.
+
+
 If you need to generate unique sequential values you can pass a block to the
 attribute name when you call it in the factory. Each time this block is called
 it takes an incrementing integer value as its argument. The return value of the
