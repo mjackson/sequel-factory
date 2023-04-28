@@ -78,8 +78,8 @@ module Sequel
 
     # Gets/sets the factory with the given +name+. If a block is given, uses that
     # block to create a new factory.
-    def self.factory(name=:default)
-      factories[name] = Factory.new(Proc.new) if block_given?
+    def self.factory(name=:default, &block)
+      factories[name] = Factory.new(Proc.new(&block)) if block_given?
       factories[name]
     end
 
